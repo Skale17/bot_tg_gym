@@ -5,7 +5,7 @@ import time
 import threading
 import schedule
 
-TOKEN = "your token"
+TOKEN = "6964314400:AAFsD07Nf5eTUOmYdzoCwTMb9beJfrfaQ-Q"
  
 name = None
 bot = telebot.TeleBot(TOKEN)
@@ -83,32 +83,25 @@ def user_day(query):
 
 @bot.callback_query_handler(func=lambda query: query.data == 'mon')
 def mon(query):
-    days = ' понедельник'
-    users_input_days(query, days)
+    users_input_days(query, ' понедельник')
 @bot.callback_query_handler(func=lambda query: query.data == 'tue')
-def mon(query):
-    days = ' вторник'
-    users_input_days(query, days)
+def tue(query):
+    users_input_days(query, ' вторник')
 @bot.callback_query_handler(func=lambda query: query.data == 'wed')
-def mon(query):
-    days = ' среда'
-    users_input_days(query, days)
+def wed(query):
+    users_input_days(query, ' среда')
 @bot.callback_query_handler(func=lambda query: query.data == 'thu')
-def mon(query):
-    days = ' четверг'
-    users_input_days(query, days)
+def thu(query):
+    users_input_days(query, ' четверг')
 @bot.callback_query_handler(func=lambda query: query.data == 'fri')
-def mon(query):
-    days = ' пятница'
-    users_input_days(query, days)
+def fri(query):
+    users_input_days(query, ' пятница')
 @bot.callback_query_handler(func=lambda query: query.data == 'sat')
-def mon(query):
-    days = ' суббота'
-    users_input_days(query, days)
+def sat(query):
+    users_input_days(query, ' суббота')
 @bot.callback_query_handler(func=lambda query: query.data == 'sun')
-def mon(query):
-    days = ' воскресенье'
-    users_input_days(query, days)
+def sun(query):
+    users_input_days(query, ' воскресенье')
 
     
 
@@ -290,12 +283,4 @@ def comand_menu(message):
     markup.add(types.InlineKeyboardButton('Сменить Имя', callback_data='name'))
     bot.send_message(message.chat.id, "Меню", reply_markup=markup)
     
-
-
-
-
-
-
-
-
 bot.polling(non_stop=True)
