@@ -10,7 +10,15 @@ TOKEN = "your token"
 name = None
 bot = telebot.TeleBot(TOKEN)
 
-
+trans_day = { 
+                    'Mon':'понедельник',
+                    'Tue':'вторник',
+                    'Wed':'среда',
+                    'Thu':'четверг',
+                    'Fri':'пятница',
+                    'Sat':'суббота',
+                    'Sun':'воскресенье',
+                }
 
 @bot.message_handler(commands=['start'])
 def comand_start(message):
@@ -72,98 +80,51 @@ def user_day(query):
     
     bot.send_message(user_id[0],"Выбери дни по которым ходишь в зал", reply_markup=markup)
 
+
 @bot.callback_query_handler(func=lambda query: query.data == 'mon')
-def Mon(query):
-    user_id = query.from_user.id
-    conn = sqlite3.connect('main_base.sql')
-    cur = conn.cursor()
-    cur.execute('SELECT day FROM users WHERE id = ?', (user_id,))
-    day = str(cur.fetchone())
-    filter_day = filter_str(day)
-    new_day = filter_day + ' понедельник'
-    cur.execute('UPDATE users SET day = ? WHERE id = ?', (new_day, user_id))
-    conn.commit()
-    cur.close()
-    conn.close()
+def mon(query):
+    days = ' понедельник'
+    users_input_days(query, days)
 @bot.callback_query_handler(func=lambda query: query.data == 'tue')
-def Tue(query):
-    user_id = query.from_user.id
-    conn = sqlite3.connect('main_base.sql')
-    cur = conn.cursor()
-    cur.execute('SELECT day FROM users WHERE id = ?', (user_id,))
-    day = str(cur.fetchone())
-    filter_day = filter_str(day)
-    new_day = filter_day + ' вторник'
-    cur.execute('UPDATE users SET day = ? WHERE id = ?', (new_day, user_id))
-    conn.commit()
-    cur.close()
-    conn.close()
+def mon(query):
+    days = ' вторник'
+    users_input_days(query, days)
 @bot.callback_query_handler(func=lambda query: query.data == 'wed')
-def Wed(query):
-    user_id = query.from_user.id
-    conn = sqlite3.connect('main_base.sql')
-    cur = conn.cursor()
-    cur.execute('SELECT day FROM users WHERE id = ?', (user_id,))
-    day = str(cur.fetchone())
-    filter_day = filter_str(day)
-    new_day = filter_day + ' среда'
-    cur.execute('UPDATE users SET day = ? WHERE id = ?', (new_day, user_id))
-    conn.commit()
-    cur.close()
-    conn.close()
+def mon(query):
+    days = ' среда'
+    users_input_days(query, days)
 @bot.callback_query_handler(func=lambda query: query.data == 'thu')
-def Thu(query):
+def mon(query):
+    days = ' четверг'
+    users_input_days(query, days)
+@bot.callback_query_handler(func=lambda query: query.data == 'fri')
+def mon(query):
+    days = ' пятница'
+    users_input_days(query, days)
+@bot.callback_query_handler(func=lambda query: query.data == 'sat')
+def mon(query):
+    days = ' суббота'
+    users_input_days(query, days)
+@bot.callback_query_handler(func=lambda query: query.data == 'sun')
+def mon(query):
+    days = ' воскресенье'
+    users_input_days(query, days)
+
+    
+
+def users_input_days(query, days):
     user_id = query.from_user.id
     conn = sqlite3.connect('main_base.sql')
     cur = conn.cursor()
     cur.execute('SELECT day FROM users WHERE id = ?', (user_id,))
     day = str(cur.fetchone())
     filter_day = filter_str(day)
-    new_day = filter_day + ' четверг'
+    new_day = filter_day + days
     cur.execute('UPDATE users SET day = ? WHERE id = ?', (new_day, user_id))
     conn.commit()
     cur.close()
     conn.close()
 
-@bot.callback_query_handler(func=lambda query: query.data == 'fri')
-def Fri(query):
-    user_id = query.from_user.id
-    conn = sqlite3.connect('main_base.sql')
-    cur = conn.cursor()
-    cur.execute('SELECT day FROM users WHERE id = ?', (user_id,))
-    day = str(cur.fetchone())
-    filter_day = filter_str(day)
-    new_day = filter_day + ' пятница'
-    cur.execute('UPDATE users SET day = ? WHERE id = ?', (new_day, user_id))
-    conn.commit()
-    cur.close()
-    conn.close()
-@bot.callback_query_handler(func=lambda query: query.data == 'sat')
-def Sat(query):
-    user_id = query.from_user.id
-    conn = sqlite3.connect('main_base.sql')
-    cur = conn.cursor()
-    cur.execute('SELECT day FROM users WHERE id = ?', (user_id,))
-    day = str(cur.fetchone())
-    filter_day = filter_str(day)
-    new_day = filter_day + ' суббота'
-    cur.execute('UPDATE users SET day = ? WHERE id = ?', (new_day, user_id))
-    conn.commit()
-    cur.close()
-    conn.close()
-@bot.callback_query_handler(func=lambda query: query.data == 'sun')
-def Sun(query):
-    user_id = query.from_user.id
-    conn = sqlite3.connect('main_base.sql')
-    cur = conn.cursor()
-    cur.execute('SELECT day FROM users WHERE id = ?', (user_id,))
-    day = str(cur.fetchone())
-    filter_day = filter_str(day)
-    new_day = filter_day + ' воскресенье'
-    cur.execute('UPDATE users SET day = ? WHERE id = ?', (new_day, user_id))
-    conn.commit()
-    cur.close()
-    conn.close()
 
 @bot.callback_query_handler(func=lambda query: query.data == 'save')
 def Save(query):
@@ -185,7 +146,8 @@ def Save(query):
 @bot.callback_query_handler(func=lambda query: query.data == 'yes_save')
 def Save_yes(query):
     bot.delete_message(chat_id=query.message.chat.id, message_id=query.message.message_id)
-    bot.register_next_step_handler(query.message, comand_menu)
+    message = query.message
+    comand_menu(message)
 
 @bot.callback_query_handler(func=lambda query: query.data == 'name')
 def rename(query):
@@ -216,15 +178,7 @@ def filter_str(text):
 
 def survey():
     message = 'Ты сегодня идешь в зал?'
-    trans_day = { 
-                    'Mon':'понедельник',
-                    'Tue':'вторник',
-                    'Wed':'среда',
-                    'Thu':'четверг',
-                    'Fri':'пятница',
-                    'Sat':'суббота',
-                    'Sun':'воскресенье',
-                }
+    
     current_time = time.time()
     formatted_time = time.ctime(current_time)
     date = formatted_time.split()
@@ -250,7 +204,7 @@ def survey():
 
 def schedule_survey():
 
-    schedule.every().day.at("17:20").do(survey)
+    schedule.every().day.at("23:41").do(survey)
     while True:
         schedule.run_pending()
         time.sleep(1)
