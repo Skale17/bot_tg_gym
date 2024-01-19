@@ -1,15 +1,14 @@
 import telebot
-import sqlite3
 from telebot import types
 import time
 import threading
 import schedule
+from base import *
 
 TOKEN = "6964314400:AAFsD07Nf5eTUOmYdzoCwTMb9beJfrfaQ-Q"
  
 name = None
 bot = telebot.TeleBot(TOKEN)
-
 trans_day = { 
                     'Mon':'понедельник',
                     'Tue':'вторник',
@@ -22,22 +21,10 @@ trans_day = {
 
 @bot.message_handler(commands=['start'])
 def comand_start(message):
-    conn = sqlite3.connect('main_base.sql')
-    cur = conn.cursor()
-    cur.execute('''
-                CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name varchar(50),
-                day str varchar(100),
-                mmr int
-            )
-        ''')
-    conn.commit()
-    cur.close()
-    conn.close()
-
-    bot.send_message(message.chat.id,'Гачи хуила напиши свое прозвище')
+    create_table('main_base')
+    bot.send_message(message.from_user.id,'Напиши свое прозвище')
     bot.register_next_step_handler(message, user_name)
+
 
 def user_name(message):
     name = message.text.strip()
@@ -47,27 +34,20 @@ def user_name(message):
     markup = types.InlineKeyboardMarkup()
     markup.add(types.InlineKeyboardButton('Список пользователей', callback_data='users'))
     markup.add(types.InlineKeyboardButton('Выбрать дни посещения ', callback_data='day'))
-    conn = sqlite3.connect('main_base.sql')
-    cur = conn.cursor()
-    try:
-        cur.execute('INSERT INTO users(name, id,day, mmr) VALUES (?, ?, ?,?)', (name, id, day, mmr))
-        bot.send_message(message.chat.id,f"""Ну все ты подписался на 9 кругов ада в Gачи качалке сейчас мы зачислели тебе 500 MMR и дальше ты должен выбрать дни по которым ходишь в зал если что-то не понятно у нас есть команда /menu""", reply_markup=markup)
-    except:
+    markup.add(types.InlineKeyboardButton('Информация о боте', callback_data='info'))
+    result = insert_user_info(name, id, day, mmr)
+    if result == True:
+        bot.send_message(message.from_user.id,f"""Ну все ты подписался на 9 кругов ада в Gачи качалке😈☠️😈 сейчас мы зачислели тебе 500 MMR и дальше ты должен выбрать дни по которым ходишь в зал если что-то не понятно у нас есть команда /menu""", reply_markup=markup)
+    elif result == False:
         bot.send_message(message.chat.id,f"""Ты уже зарегистрирован""", reply_markup=markup)
-    conn.commit()
-    cur.close()
-    conn.close()
+    
 @bot.callback_query_handler(func=lambda query: query.data == 'day')
 def user_day(query):
     bot.delete_message(chat_id=query.message.chat.id, message_id=query.message.message_id)
-    user_id = (query.from_user.id,)
+    user_id = query.from_user.id
+    chat_id = query.message.chat.id
     day = ''
-    conn = sqlite3.connect('main_base.sql')
-    cur = conn.cursor()
-    cur.execute('UPDATE users SET day = ? WHERE id = ?', (day, user_id[0]))
-    conn.commit()
-    cur.close()
-    conn.close()
+    update_day(day, user_id)
     markup = types.InlineKeyboardMarkup()
     markup.add(types.InlineKeyboardButton('Понедельник', callback_data='mon'))
     markup.add(types.InlineKeyboardButton('Вторник', callback_data='tue'))
@@ -77,8 +57,7 @@ def user_day(query):
     markup.add(types.InlineKeyboardButton('Суббота', callback_data='sat'))
     markup.add(types.InlineKeyboardButton('Воскресенье', callback_data='sun'))
     markup.add(types.InlineKeyboardButton('Сохранить', callback_data='save'))
-    
-    bot.send_message(user_id[0],"Выбери дни по которым ходишь в зал", reply_markup=markup)
+    bot.send_message(chat_id,"Выбери дни по которым ходишь в зал", reply_markup=markup)
 
 
 @bot.callback_query_handler(func=lambda query: query.data == 'mon')
@@ -103,38 +82,24 @@ def sat(query):
 def sun(query):
     users_input_days(query, ' воскресенье')
 
-    
-
 def users_input_days(query, days):
     user_id = query.from_user.id
-    conn = sqlite3.connect('main_base.sql')
-    cur = conn.cursor()
-    cur.execute('SELECT day FROM users WHERE id = ?', (user_id,))
-    day = str(cur.fetchone())
-    filter_day = filter_str(day)
+    day = str(select_days_from_base(user_id))
+    filter_day = ''.join(symbol for symbol in day if symbol.isspace() or symbol.isalpha())
     new_day = filter_day + days
-    cur.execute('UPDATE users SET day = ? WHERE id = ?', (new_day, user_id))
-    conn.commit()
-    cur.close()
-    conn.close()
-
+    update_day(new_day, user_id)
 
 @bot.callback_query_handler(func=lambda query: query.data == 'save')
 def Save(query):
     user_id = query.from_user.id
+    chat_id = query.message.chat.id
     bot.delete_message(chat_id=query.message.chat.id, message_id=query.message.message_id)
     markup = types.InlineKeyboardMarkup()
     markup.add(types.InlineKeyboardButton('Да', callback_data='yes_save'))
     markup.add(types.InlineKeyboardButton('Нет', callback_data='day'))
-    conn = sqlite3.connect('main_base.sql')
-    cur = conn.cursor()
-    cur.execute('SELECT day FROM users')
-    day = str(cur.fetchone())
-    conn.commit()
-    cur.close()
-    conn.close()
+    day = select_days_from_base(user_id)
     filter_day = filter_str(day)
-    bot.send_message(user_id,f"Дни выбраны верно?\n {filter_day}", reply_markup=markup)
+    bot.send_message(chat_id,f"Дни выбраны верно?\n {filter_day}", reply_markup=markup)
     
 @bot.callback_query_handler(func=lambda query: query.data == 'yes_save')
 def Save_yes(query):
@@ -144,21 +109,17 @@ def Save_yes(query):
 
 @bot.callback_query_handler(func=lambda query: query.data == 'name')
 def rename(query):
-    user_id = query.from_user.id
     bot.delete_message(chat_id=query.message.chat.id, message_id=query.message.message_id)
-    bot.send_message(user_id,f"Напиши свое новое прозвище",)
+    bot.send_message(query.from_user.id,f"Напиши свое новое прозвище",)
     bot.register_next_step_handler(query.message, change_name)
 
 def change_name(message):
     user_id = message.from_user.id
     name = message.text.strip()
-    conn = sqlite3.connect('main_base.sql')
-    cur = conn.cursor()
-    cur.execute('UPDATE users SET name = ? WHERE id = ?', (name, user_id))
-    conn.commit()
-    cur.close()
-    conn.close()
+    update_user_name(name, user_id)
     bot.send_message(user_id,f"Твое новое прозвище {name}",)
+    comand_menu(message)
+    
     
 
 def filter_str(text):
@@ -171,7 +132,6 @@ def filter_str(text):
 
 def survey():
     message = 'Ты сегодня идешь в зал?'
-    
     current_time = time.time()
     formatted_time = time.ctime(current_time)
     date = formatted_time.split()
@@ -179,25 +139,25 @@ def survey():
     markup = types.InlineKeyboardMarkup()
     markup.add(types.InlineKeyboardButton('Да, иду', callback_data='yes'))
     markup.add(types.InlineKeyboardButton('Нет, не иду', callback_data='no'))
-    conn = sqlite3.connect('main_base.sql')
-    cur = conn.cursor()
-    cur.execute('SELECT * FROM users')
-    users = cur.fetchall()
+    users = select_users()
     for el in users:
         el_str = str.lower(el[2])
         user_days = el_str.split()
         if day_time in user_days:
             bot.send_message(el[0], message, reply_markup=markup)
-    
-            
 
-    cur.close()
-    conn.close()
+@bot.message_handler(commands=['liders'])
+def liders(message):
+    users = select_users() 
+    text = users
+    for el in users:
+        bot.send_message(el[0], text)
+
 
 
 def schedule_survey():
-
-    schedule.every().day.at("23:41").do(survey)
+    schedule.every().day.at("21:28").do(survey)
+    schedule.every().day.at("22:43").do(liders)
     while True:
         schedule.run_pending()
         time.sleep(1)
@@ -207,73 +167,59 @@ schedule_survey.start()
 
 @bot.callback_query_handler(func=lambda query: query.data == 'no')
 def count_no(query):
-    bot.delete_message(chat_id=query.message.chat.id, message_id=query.message.message_id)
-    conn = sqlite3.connect('main_base.sql')
-    cur = conn.cursor()
-    user_id = (query.from_user.id,)
-    cur.execute('SELECT mmr FROM users WHERE id = ?', user_id)
-    mmr = cur.fetchone()
-    current_mmr = int(mmr[0])
-    new_mmr = current_mmr - 150
-    cur.execute('UPDATE users SET mmr = ? WHERE id = ?', (new_mmr, user_id[0]))
-    cur.execute('SELECT id FROM users')
-    all_users = cur.fetchall()
-    cur.execute('SELECT name FROM users WHERE id = ?', user_id)
-    name = cur.fetchone()
-    conn.commit()
-    cur.close()
-    conn.close()
-    for id in all_users:
-        bot.send_message(id[0],f'{name[0]} НЕ МОЖЕТ пойти сегодня в зал', disable_notification=True)
+    message = 'Не сможет пойти сегодня в зал'
+    count(query, message, False)
 
 @bot.callback_query_handler(func=lambda query: query.data == 'yes')
-def count_yes(query):
+def count_yes(query,):
+    message = 'Идет сегодня в зал'
+    count(query, message, True)
+
+def count(query, mess, p_m):
     bot.delete_message(chat_id=query.message.chat.id, message_id=query.message.message_id)
-    conn = sqlite3.connect('main_base.sql')
-    cur = conn.cursor()
     user_id = (query.from_user.id,)
-    cur.execute('SELECT mmr FROM users WHERE id = ?', user_id)
-    mmr = cur.fetchone()
+    mmr = select_mmr(user_id)
     current_mmr = int(mmr[0])
-    new_mmr = current_mmr + 100
-    cur.execute('UPDATE users SET mmr = ? WHERE id = ?', (new_mmr, user_id[0]))
-    cur.execute('SELECT id FROM users')
-    all_users = cur.fetchall()
-    cur.execute('SELECT name FROM users WHERE id = ?', user_id)
-    name = cur.fetchone()
-    conn.commit()
-    cur.close()
-    conn.close()
+    if p_m == True:
+        new_mmr = current_mmr + 100
+    elif p_m == False:
+        new_mmr = current_mmr -150
+    update_mmr(new_mmr, user_id)
+    all_users =  all_id()
+    name = select_user_name(user_id)
     for id in all_users:
-        bot.send_message(id[0],f'{name[0]} Пойдет сегодня в зал', disable_notification=True)
+        bot.send_message(id[0],f'{name[0]} {mess}', disable_notification=True)
 
 
 @bot.callback_query_handler(func=lambda call: call.data == 'users')
 def callback(call):
-    conn = sqlite3.connect('main_base.sql')
-    cur = conn.cursor()
-    cur.execute('SELECT * FROM users')
-    users = cur.fetchall()
-    
+    users = select_users()
     info = ''
     for el in users:
         info += f'Имя: {el[1]}| Дни: {el[2]}| MMR: {el[3]}\n'
-    cur.close()
-    conn.close()
     bot.send_message(call.message.chat.id, info)
-    
+
+@bot.callback_query_handler(func=lambda query: query.data == 'info')
+def info(query):
+    info = f'''Это отдел информации:
+      Этот бот был создан для большей мотивации
+      чтобы посещать качалку скажем так.
+      Когда ты вписал свое имя ты должен выбрать дни посищения
+      в эти дни тебе будет приходить опрос идешь ты в зал или нет
+      если отвечаешь да тогда тебе +100 MMR, если нет тогда -150
+      в дальнейших планах думаю ввести звания за MMR
+      ну если есть еще идеи то говорите.
+      Когда кто либо нажимает да или нет при опросе
+      всем пользователям приходит уведомление без звука
+      что кто-то идет в зал🥶🥶'''
+    bot.send_message(query.message.chat.id, info)
+
 
 @bot.message_handler(commands=['base'])
 def base_print(message):
-    conn = sqlite3.connect('main_base.sql')
-    cur = conn.cursor()
-    cur.execute('SELECT * FROM users')
-    rows = cur.fetchall()
-    result_str = "\n".join(map(str, rows))
+    users = select_users()
+    result_str = "\n".join(map(str, users))
     bot.send_message(message.chat.id, result_str)
-    conn.commit()
-    cur.close()
-    conn.close()
 
 @bot.message_handler(commands=['menu'])
 def comand_menu(message):
@@ -281,6 +227,7 @@ def comand_menu(message):
     markup.add(types.InlineKeyboardButton('Список пользователей', callback_data='users'))
     markup.add(types.InlineKeyboardButton('Сменить дни посищения ', callback_data='day'))
     markup.add(types.InlineKeyboardButton('Сменить Имя', callback_data='name'))
+    markup.add(types.InlineKeyboardButton('Информация о боте', callback_data='info'))
     bot.send_message(message.chat.id, "Меню", reply_markup=markup)
     
 bot.polling(non_stop=True)
