@@ -94,3 +94,21 @@ def select_user_name(user_id):
     cur.close()
     conn.close()
     return name
+def select_all_mmr():
+    conn = sqlite3.connect('main_base.sql')
+    cur = conn.cursor()
+    cur.execute('SELECT mmr FROM users')
+    mmr = cur.fetchone()
+    cur.close()
+    conn.close()
+    return mmr
+def select__name_where_mmr(mmr):
+    mmr_i = int(mmr)
+    conn = sqlite3.connect('main_base.sql')
+    cur = conn.cursor()
+    cur.execute('SELECT name FROM users WHERE mmr = ?', (mmr_i,))
+
+    name = cur.fetchone()
+    cur.close()
+    conn.close()
+    return name
