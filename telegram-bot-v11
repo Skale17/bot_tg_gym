@@ -121,7 +121,7 @@ def survey():
     markup.add(types.InlineKeyboardButton('Нет, не иду', callback_data='no'))
     users = select_users()
     for el in users:
-        el_str = str.lower(el[2])
+        el_str = str(el[2])
         user_days = el_str.split()
         if day_time in user_days:
             bot.send_message(el[0], message, reply_markup=markup)
