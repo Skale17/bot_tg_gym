@@ -10,19 +10,19 @@ TOKEN = "your token"
  
 name = None
 bot = telebot.TeleBot(TOKEN)
-trans_day = { 
-                    'Mon':'понедельник',
-                    'Tue':'вторник',
-                    'Wed':'среда',
-                    'Thu':'четверг',
-                    'Fri':'пятница',
-                    'Sat':'суббота',
-                    'Sun':'воскресенье',
+days_of_week = { 
+                    'Mon':'Понедельник',
+                    'Tue':'Вторник',
+                    'Wed':'Среда',
+                    'Thu':'Четверг',
+                    'Fri':'Пятница',
+                    'Sat':'Суббота',
+                    'Sun':'Воскресенье',
                 }
 
 @bot.message_handler(commands=['start'])
 def comand_start(message):
-    create_table('main_base')
+    create_table()
     bot.send_message(message.from_user.id,'Напиши свое прозвище')
     bot.register_next_step_handler(message, user_name)
 
@@ -50,38 +50,17 @@ def user_day(query):
     day = ''
     update_day(day, user_id)
     markup = types.InlineKeyboardMarkup()
-    markup.add(types.InlineKeyboardButton('Понедельник', callback_data='mon'))
-    markup.add(types.InlineKeyboardButton('Вторник', callback_data='tue'))
-    markup.add(types.InlineKeyboardButton('Среда', callback_data='wed'))
-    markup.add(types.InlineKeyboardButton('Четверг', callback_data='thu'))
-    markup.add(types.InlineKeyboardButton('Пятница', callback_data='fri'))
-    markup.add(types.InlineKeyboardButton('Суббота', callback_data='sat'))
-    markup.add(types.InlineKeyboardButton('Воскресенье', callback_data='sun'))
+    for day_code, day_name in days_of_week.items():
+        markup.add(types.InlineKeyboardButton(day_name, callback_data=day_code))
     markup.add(types.InlineKeyboardButton('Сохранить', callback_data='save'))
     bot.send_message(chat_id,"Выбери дни по которым ходишь в зал", reply_markup=markup)
 
 
-@bot.callback_query_handler(func=lambda query: query.data == 'mon')
-def mon(query):
-    users_input_days(query, ' понедельник')
-@bot.callback_query_handler(func=lambda query: query.data == 'tue')
-def tue(query):
-    users_input_days(query, ' вторник')
-@bot.callback_query_handler(func=lambda query: query.data == 'wed')
-def wed(query):
-    users_input_days(query, ' среда')
-@bot.callback_query_handler(func=lambda query: query.data == 'thu')
-def thu(query):
-    users_input_days(query, ' четверг')
-@bot.callback_query_handler(func=lambda query: query.data == 'fri')
-def fri(query):
-    users_input_days(query, ' пятница')
-@bot.callback_query_handler(func=lambda query: query.data == 'sat')
-def sat(query):
-    users_input_days(query, ' суббота')
-@bot.callback_query_handler(func=lambda query: query.data == 'sun')
-def sun(query):
-    users_input_days(query, ' воскресенье')
+@bot.callback_query_handler(func=lambda query: query.data in days_of_week)
+def days_definition(query):
+    day_key = query.data
+    day_name = days_of_week[day_key]
+    users_input_days(query, f' {day_name}')
 
 def users_input_days(query, days):
     user_id = query.from_user.id
@@ -91,7 +70,7 @@ def users_input_days(query, days):
     update_day(new_day, user_id)
 
 @bot.callback_query_handler(func=lambda query: query.data == 'save')
-def Save(query):
+def save(query):
     user_id = query.from_user.id
     chat_id = query.message.chat.id
     bot.delete_message(chat_id=query.message.chat.id, message_id=query.message.message_id)
@@ -103,7 +82,7 @@ def Save(query):
     bot.send_message(chat_id,f"Дни выбраны верно?\n {filter_day}", reply_markup=markup)
     
 @bot.callback_query_handler(func=lambda query: query.data == 'yes_save')
-def Save_yes(query):
+def save_yes(query):
     bot.delete_message(chat_id=query.message.chat.id, message_id=query.message.message_id)
     message = query.message
     comand_menu(message)
@@ -136,7 +115,7 @@ def survey():
     current_time = time.time()
     formatted_time = time.ctime(current_time)
     date = formatted_time.split()
-    day_time = trans_day[date[0]]
+    day_time = days_of_week[date[0]]
     markup = types.InlineKeyboardMarkup()
     markup.add(types.InlineKeyboardButton('Да, иду', callback_data='yes'))
     markup.add(types.InlineKeyboardButton('Нет, не иду', callback_data='no'))
