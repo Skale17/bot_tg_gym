@@ -6,8 +6,8 @@ import schedule
 from base import *
 from datetime import datetime
 import random
+from TOKEN import *
 
-TOKEN = "6964314400:AAFsD07Nf5eTUOmYdzoCwTMb9beJfrfaQ-Q"
  
 name = None
 bot = telebot.TeleBot(TOKEN)
@@ -44,11 +44,12 @@ def user_name(message):
     id = message.from_user.id
     mmr = int(500)
     day = ''
+    role = ''
     markup = types.InlineKeyboardMarkup()
     markup.add(types.InlineKeyboardButton('Список пользователей', callback_data='users'))
     markup.add(types.InlineKeyboardButton('Выбрать дни посещения ', callback_data='day'))
     markup.add(types.InlineKeyboardButton('Информация о боте', callback_data='info'))
-    result = insert_user_info(name, id, day, mmr)
+    result = insert_user_info(name, id, day, mmr, role)
     if result == True:
         bot.send_message(message.from_user.id,f"""Ну все ты подписался на 9 кругов ада в Gачи качалке😈☠️😈 сейчас мы зачислели тебе 500 MMR и дальше ты должен выбрать дни по которым ходишь в зал если что-то не понятно у нас есть команда /menu""", reply_markup=markup)
     elif result == False:
@@ -138,7 +139,7 @@ def survey():
         if day_time in user_days:
             bot.send_message(el[0], message, reply_markup=markup)
 
-def liders():
+def leaders():
     users = select_users() 
     mmr_str = ''
     for el in users:
@@ -162,7 +163,7 @@ def liders():
 def schedule_survey():
     schedule.every().day.at("19:44").do(survey)
     if datetime.now().day == 1:
-        schedule.every().day.at("20:00").do(liders)
+        schedule.every().day.at("20:00").do(leaders)
     while True:
         schedule.run_pending()
         time.sleep(1)
@@ -257,13 +258,20 @@ def info(query):
       50 MMR либо снимут 60 если откажешся'''
     bot.send_message(query.message.chat.id, info)
 
+def check_role(message, text):
+    user_id = message.from_user.id
+    role = str(select_role(user_id))
+    if role == 'admin':
+        bot.send_message(message.chat.id, text)
+    else:
+        bot.send_message(message.chat.id, 'У вас не достаточно прав на эту команду')
 
 @bot.message_handler(commands=['base'])
 def base_print(message):
     users = select_users()
     result_str = "\n".join(map(str, users))
-    bot.send_message(message.chat.id, result_str)
-
+    check_role(message, result_str)
+    
 @bot.message_handler(commands=['menu'])
 def comand_menu(message):
     markup = types.InlineKeyboardMarkup()
@@ -274,5 +282,18 @@ def comand_menu(message):
     markup.add(types.InlineKeyboardButton('Испытать удачу', callback_data='challenge'))
     
     bot.send_message(message.chat.id, "Меню", reply_markup=markup)
-    
+
+@bot.message_handler(commands=['password'])
+def password(message):
+    bot.send_message(message.from_user.id,'Введи секретнный пороль')
+    bot.register_next_step_handler(message, password_check)
+
+def password_check(message):
+    entered_password = message.text.strip()
+    user_id = message.from_user.id
+    if entered_password == real_password:
+        add_role(user_id)
+        bot.send_message(message.from_user.id,'Пароль введен верно. Права админа активированны')
+    else:
+         bot.send_message(message.from_user.id,'Кого ты хочешь наебать? Не правильно')
 bot.polling(non_stop=True)
