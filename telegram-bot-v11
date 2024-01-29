@@ -11,10 +11,7 @@ from TOKEN import *
  
 name = None
 bot = telebot.TeleBot(TOKEN)
-challenges = {1:('бицепс', 1, 3, 10, 40),
-              2:('жим лежа', 1, 3, 10, 65),
-              3:('присидание',1, 3, 20, 150,),
-}
+
 days_of_week = { 
                     'Mon':'Понедельник',
                     'Tue':'Вторник',
@@ -33,7 +30,7 @@ adding_mmr = {
 
 @bot.message_handler(commands=['start'])
 def comand_start(message):
-    create_table()
+    create_table_user()
     bot.send_message(message.from_user.id,'Напиши свое прозвище')
     bot.register_next_step_handler(message, user_name)
 
@@ -98,7 +95,7 @@ def save(query):
 def save_yes(query):
     bot.delete_message(chat_id=query.message.chat.id, message_id=query.message.message_id)
     message = query.message
-    comand_menu(message)
+    handle_menu_command(message)
 
 @bot.callback_query_handler(func=lambda query: query.data == 'name')
 def rename(query):
@@ -111,12 +108,13 @@ def change_name(message):
     name = message.text.strip()
     update_user_name(name, user_id)
     bot.send_message(user_id,f"Твое новое прозвище {name}",)
-    comand_menu(message)
+    handle_menu_command(message)
     
     
 
 def filter_str(text):
     return ''.join(symbol for symbol in text if symbol.isspace() or symbol.isalpha())
+    
     
 
 
@@ -179,17 +177,17 @@ schedule_survey.start()
 @bot.callback_query_handler(func=lambda query: query.data in adding_mmr)
 def days_definition(query):
     mmr_key = query.data
-    message, mmr, p_m = adding_mmr[mmr_key]
-    count(query, message, mmr, p_m)
+    message, mmr, plus_minus = adding_mmr[mmr_key]
+    count(query, message, mmr, plus_minus)
 
-def count(query, mess, num, p_m):
+def count(query, mess, num, plus_minus):
     bot.delete_message(chat_id=query.message.chat.id, message_id=query.message.message_id)
     user_id = (query.from_user.id,)
     mmr = select_mmr(user_id)
     current_mmr = int(mmr[0])
-    if p_m == True:
+    if plus_minus == True:
         new_mmr = current_mmr + num
-    elif p_m == False:
+    elif plus_minus == False:
         new_mmr = current_mmr - num
     update_mmr(new_mmr, user_id)
     all_users =  all_id()
@@ -209,16 +207,22 @@ def challenge(query):
     date = formatted_time.split()
     day_time = days_of_week[date[0]]
     users = select_users()
-    num_chell = lucky(1,3)
-    challenge, approaches_min, approaches_max, weight_min, weight_max = challenges[num_chell]
-    approaches = lucky(approaches_min, approaches_max)
+    last_id = int(select_last_id_challenge())
+
+    id_chall = lucky(1, last_id)
+    action = filter_str(str(select_action(id_chall)))
+    approaches_max_min = filter_int(str(select_approaches(id_chall))).split()
+    weight_max_min = filter_int(str(select_weight(id_chall))).split()
+    repetitions_max_min = filter_int(str(select_repetitions(id_chall))).split()
+    approaches = lucky(int(approaches_max_min[0]), int(approaches_max_min[1]))
+    repetitions = lucky(int(repetitions_max_min[0]), int(repetitions_max_min[1]))
     try:
-        weight = lucky(weight_min, weight_max)
+        weight = lucky(int(weight_max_min[0]), int(weight_max_min[1]))
         r_weight = rounded(weight)
         text_weight = f'с весом {r_weight}кг'
     except:
         pass
-    mess = f'Делай {challenge}, {approaches} подхода, {text_weight}'
+    mess = f'Делай {action}, {approaches} подхода, {repetitions} раз за подход, {text_weight}'
     user_id = query.from_user.id
     markup = types.InlineKeyboardMarkup()
     markup.add(types.InlineKeyboardButton('Сделал, легчайшее для велечайшего', callback_data='yes_chall'))
@@ -273,7 +277,7 @@ def base_print(message):
     check_role(message, result_str)
     
 @bot.message_handler(commands=['menu'])
-def comand_menu(message):
+def handle_menu_command(message):
     markup = types.InlineKeyboardMarkup()
     markup.add(types.InlineKeyboardButton('Список пользователей', callback_data='users'))
     markup.add(types.InlineKeyboardButton('Сменить дни посищения ', callback_data='day'))
@@ -281,12 +285,77 @@ def comand_menu(message):
     markup.add(types.InlineKeyboardButton('Информация о боте', callback_data='info'))
     markup.add(types.InlineKeyboardButton('Испытать удачу', callback_data='challenge'))
     
+
     bot.send_message(message.chat.id, "Меню", reply_markup=markup)
+@bot.message_handler(commands=['chall'])
+def chall_print(message):
+    users = select_chall()
+    result_str = "\n".join(map(str, users))
+    check_role(message, result_str)
+    
+    
 
 @bot.message_handler(commands=['password'])
 def password(message):
     bot.send_message(message.from_user.id,'Введи секретнный пороль')
     bot.register_next_step_handler(message, password_check)
+
+
+@bot.message_handler(commands=['challenge'])
+def action_challenge(message):
+    create_table_challenge()
+    bot.send_message(message.from_user.id,'Я так понимаю ты хочешь добавить новый челендж, введи задачу челенжда(к примеру: жим лежа или подтянуться)')
+    bot.register_next_step_handler(message, approaches_challenge)
+
+def approaches_challenge(message):
+    action = message.text.strip()
+    approaches = ''
+    weight = ''
+    repetitions = ''
+    insert_action(action,approaches, weight, repetitions)
+    bot.send_message(message.from_user.id,'Напиши минимальное кол. подходов и максимальное кол. подходов (к примеру: 1 3) просто два числа')
+    bot.register_next_step_handler(message, weight_challenge)
+
+def weight_challenge(message):
+    id = select_last_id_challenge()
+    approaches = message.text.strip()
+    insert_approaches(id, approaches)
+    
+    bot.send_message(message.from_user.id,'Напиши минимальный вес и максимальный вес (к примеру: 10 60) просто два числа')
+    bot.register_next_step_handler(message, repetitions_challenge)
+
+def repetitions_challenge(message):
+    id = select_last_id_challenge()
+    weight = message.text.strip()
+    insert_weight(id, weight)
+    
+    bot.send_message(message.from_user.id,'Напиши минимальное кол. повторений за подход и максимальное  (к примеру: 1 15) просто два числа')
+    bot.register_next_step_handler(message, last_step_challenge)
+
+def last_step_challenge(message):
+    id = select_last_id_challenge()
+    repetitions = message.text.strip()
+    insert_repetitions(id, repetitions)
+    action = filter_str(str(select_action(id)))
+    approaches = filter_int(str(select_approaches(id)))
+    weight = filter_int(str(select_weight(id)))
+    markup = types.InlineKeyboardMarkup()
+    markup.add(types.InlineKeyboardButton('Да, верно', callback_data='yes_edit_chall'))
+    markup.add(types.InlineKeyboardButton('Нет, переписать', callback_data='no_edit_chall'))
+    bot.send_message(message.from_user.id,f'Упражнение "{action}",\n Количество подходов {approaches},\n Вес {weight},\n Повторений за подход {repetitions}', reply_markup=markup)
+    
+@bot.callback_query_handler(func=lambda query: query.data == 'yes_edit_chall')
+def challenge_yes(query):
+    bot.delete_message(chat_id=query.message.chat.id, message_id=query.message.message_id)
+    handle_menu_command(query.message)
+
+@bot.callback_query_handler(func=lambda query: query.data == 'no_edit_chall')
+def challenge_no(query):
+    bot.delete_message(chat_id=query.message.chat.id, message_id=query.message.message_id)
+    bot.send_message(query.message.from_user.id,'В следующий раз постарайся написать точнее')
+    
+    
+
 
 def password_check(message):
     entered_password = message.text.strip()
@@ -295,5 +364,7 @@ def password_check(message):
         add_role(user_id)
         bot.send_message(message.from_user.id,'Пароль введен верно. Права админа активированны')
     else:
-         bot.send_message(message.from_user.id,'Кого ты хочешь наебать? Не правильно')
+        bot.send_message(message.from_user.id,'Кого ты хочешь наебать? Не правильно')
+
+
 bot.polling(non_stop=True)
