@@ -342,7 +342,10 @@ def last_step_challenge(message):
     markup = types.InlineKeyboardMarkup()
     markup.add(types.InlineKeyboardButton('Да, верно', callback_data='yes_edit_chall'))
     markup.add(types.InlineKeyboardButton('Нет, переписать', callback_data='no_edit_chall'))
-    bot.send_message(message.from_user.id,f'Упражнение "{action}",\n Количество подходов {approaches},\n Вес {weight},\n Повторений за подход {repetitions}', reply_markup=markup)
+    if action.strip() == '':
+        bot.send_message(message.from_user.id,'Не коректно введенно упражнение')
+    else:
+        bot.send_message(message.from_user.id,f'Упражнение "{action}",\n Количество подходов {approaches},\n Вес {weight},\n Повторений за подход {repetitions}', reply_markup=markup)
     
 @bot.callback_query_handler(func=lambda query: query.data == 'yes_edit_chall')
 def challenge_yes(query):
@@ -353,9 +356,34 @@ def challenge_yes(query):
 def challenge_no(query):
     bot.delete_message(chat_id=query.message.chat.id, message_id=query.message.message_id)
     bot.send_message(query.message.from_user.id,'В следующий раз постарайся написать точнее')
-    
-    
 
+@bot.message_handler(commands=['editmmr'])
+def mmr_admin_command(message):
+    base_print(message)
+    result_str = 'Напишите id пользователя потом + или - и количество mmr'
+    check_role(message, result_str)
+    bot.register_next_step_handler(message, add_mmr_last_step)
+def add_mmr_last_step(message):
+    id_mmr = str(message.text.strip()).split()
+    try:
+        id = int(id_mmr[0]) 
+        plus_minus = id_mmr[1]
+        mmr = int(id_mmr[2])
+    except:
+        bot.send_message(message.from_user.id,f'Данные были введены не верно повторите попытку')
+    print(f'"{id}"')
+    sel_mmr = select_mmr(id)
+    current_mmr = int(sel_mmr[0])
+    if plus_minus == '+':
+        new_mmr = current_mmr + mmr
+    elif plus_minus == '-':
+        new_mmr = current_mmr - mmr
+    else:
+        bot.send_message(message.from_user.id,'не правильная операция ')
+    user_id = [id]
+    update_mmr(new_mmr, user_id)
+    result_str = f'Теперь MMR пользвателя с id - {id}\nСостовляет - {new_mmr} MMR'
+    check_role(message, result_str)
 
 def password_check(message):
     entered_password = message.text.strip()
